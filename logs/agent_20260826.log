@@ -1,2 +1,0 @@
-2026-08-26 21:30:09,185 - agent - WARNING - agent_tools.py:92 - [fetch_external_data]未能检索到用户：1001在2026-08的使用记录数据
-2026-08-26 21:30:09,185 - agent - INFO - agent_tools.py:98 - [fetch_external_data]数据兜底：1001最近可查月份为2025-12

@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# 运行时生成物
+chroma_db/
+logs/
+md5.txt
+*.log
+
+# 评测输出（脚本保留，运行结果忽略）
+eval/results/
+eval/qa_set_export.json
+
+# IDE
+.idea/
+.vscode/
+
+# 环境变量与密钥（绝不提交真实 Key）
+.env
+.env.*
+!.env.example
+
+# 操作系统
+Thumbs.db
+.DS_Store
