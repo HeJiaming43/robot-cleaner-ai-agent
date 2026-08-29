@@ -1,0 +1,16 @@
+2026-08-29 19:29:08,717 - agent - INFO - rag_eval.py:158 - [评测] 评测集已导出: eval/qa_set_export.json（3 条）
+2026-08-29 19:29:08,717 - agent - INFO - rag_eval.py:161 - [评测] 初始化 RAG 服务（首次加载可能较慢）…
+2026-08-29 19:29:13,426 - agent - INFO - rag_eval.py:263 - [评测] 报告已保存: F:\pycharm\Agent项目\eval/results/rag_eval_report_20260829_192913.txt
+2026-08-29 19:29:13,426 - agent - INFO - rag_eval.py:264 - [评测] 明细已保存: F:\pycharm\Agent项目\eval/results/rag_eval_details_20260829_192913.json
+2026-08-29 19:29:39,218 - agent - INFO - rag_eval.py:158 - [评测] 评测集已导出: eval/qa_set_export.json（10 条）
+2026-08-29 19:29:39,219 - agent - INFO - rag_eval.py:161 - [评测] 初始化 RAG 服务（首次加载可能较慢）…
+2026-08-29 19:29:59,326 - agent - INFO - rag_eval.py:263 - [评测] 报告已保存: F:\pycharm\Agent项目\eval/results/rag_eval_report_20260829_192959.txt
+2026-08-29 19:29:59,326 - agent - INFO - rag_eval.py:264 - [评测] 明细已保存: F:\pycharm\Agent项目\eval/results/rag_eval_details_20260829_192959.json
+2026-08-29 19:31:02,163 - agent - INFO - rag_eval.py:158 - [评测] 评测集已导出: eval/qa_set_export.json（10 条）
+2026-08-29 19:31:02,163 - agent - INFO - rag_eval.py:161 - [评测] 初始化 RAG 服务（首次加载可能较慢）…
+2026-08-29 19:31:59,416 - agent - INFO - rag_eval.py:263 - [评测] 报告已保存: F:\pycharm\Agent项目\eval/results/rag_eval_report_20260829_193159.txt
+2026-08-29 19:31:59,416 - agent - INFO - rag_eval.py:264 - [评测] 明细已保存: F:\pycharm\Agent项目\eval/results/rag_eval_details_20260829_193159.json
+2026-08-29 19:32:29,581 - agent - INFO - rag_eval.py:158 - [评测] 评测集已导出: eval/qa_set_export.json（30 条）
+2026-08-29 19:32:29,581 - agent - INFO - rag_eval.py:161 - [评测] 初始化 RAG 服务（首次加载可能较慢）…
+2026-08-29 19:35:09,791 - agent - INFO - rag_eval.py:263 - [评测] 报告已保存: F:\pycharm\Agent项目\eval/results/rag_eval_report_20260829_193509.txt
+2026-08-29 19:35:09,791 - agent - INFO - rag_eval.py:264 - [评测] 明细已保存: F:\pycharm\Agent项目\eval/results/rag_eval_details_20260829_193509.json

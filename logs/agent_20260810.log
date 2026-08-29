@@ -1,0 +1,17 @@
+2026-08-10 20:44:32,034 - agent - INFO - middleware.py:39 - [log_before_model]即将调用模型，带有1条消息
+2026-08-10 20:44:32,034 - agent - DEBUG - middleware.py:41 - [log_before_model]HumanMessage | 你好，你是谁
+2026-08-10 21:26:59,971 - agent - INFO - middleware.py:39 - [log_before_model]即将调用模型，带有1条消息
+2026-08-10 21:26:59,972 - agent - DEBUG - middleware.py:41 - [log_before_model]HumanMessage | 日常如何保养
+2026-08-10 21:27:02,645 - agent - INFO - middleware.py:19 - [tool monitor]执行工具: rag_summarize
+2026-08-10 21:27:02,645 - agent - INFO - middleware.py:20 - [tool monitor]传入参数: {'query': '扫地机器人日常保养维护方法'}
+2026-08-10 21:27:10,076 - agent - INFO - middleware.py:24 - [tool monitor]工具rag_summarize调用成功
+2026-08-10 21:27:12,135 - agent - INFO - middleware.py:39 - [log_before_model]即将调用模型，带有3条消息
+2026-08-10 21:27:12,135 - agent - DEBUG - middleware.py:41 - [log_before_model]ToolMessage | 每日使用后用干软布擦拭机身外壳，清理防撞条缝隙中的毛发和线头；每次清扫完成后立即清理主刷和边刷上的毛发、灰尘，必要时用剪刀剪断缠绕物；每周拆解主刷滚刷仓并用软毛刷清理内部，同时清理风道以保证通畅；每月检查扫拖一体机型的拖地模组接口，确保无灰尘杂物；若机器人沾到宠物粪便，需立即用湿巾清理并用中性洗涤剂擦拭；日常使用后将清扫模式调至“待机”；每周检查充电座电源适配器是否发热或有异响。
+2026-08-10 21:29:02,288 - agent - ERROR - file_handler.py:13 - [md5计算]路径F:\pycharm\Agent项目\data\external不是文件
+2026-08-10 21:31:35,452 - agent - INFO - middleware.py:39 - [log_before_model]即将调用模型，带有1条消息
+2026-08-10 21:31:35,452 - agent - DEBUG - middleware.py:41 - [log_before_model]HumanMessage | 扫地机器人日常如何保养？
+2026-08-10 21:31:38,284 - agent - INFO - middleware.py:19 - [tool monitor]执行工具: rag_summarize
+2026-08-10 21:31:38,285 - agent - INFO - middleware.py:20 - [tool monitor]传入参数: {'query': '扫地机器人日常保养维护方法'}
+2026-08-10 21:31:46,631 - agent - INFO - middleware.py:24 - [tool monitor]工具rag_summarize调用成功
+2026-08-10 21:31:46,633 - agent - INFO - middleware.py:39 - [log_before_model]即将调用模型，带有3条消息
+2026-08-10 21:31:46,633 - agent - DEBUG - middleware.py:41 - [log_before_model]ToolMessage | 每日使用后用干软布擦拭机身外壳，清理防撞条缝隙的毛发和线头；每次清扫完成后立即清理主刷和边刷上的毛发、灰尘，必要时用剪刀剪断缠绕物；每周拆解主刷滚刷仓并用软毛刷清理内部，同时清理风道以保持通畅；检查边刷旋转是否卡顿，及时处理以防电机损坏；若沾到宠物粪便，立即用湿巾清洁后再用中性洗涤剂擦拭；每月检查扫拖一体机型的拖地模组接口，确保无灰尘杂物；日常使用后将模式调至“待机”，并每周检查充电座电源适配器是否发热或异响。

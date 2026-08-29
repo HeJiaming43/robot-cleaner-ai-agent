@@ -1,0 +1,29 @@
+[
+  {
+    "question": "大户型房屋如何规划清扫？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": null,
+    "error": null,
+    "retrieve_time": 1.443,
+    "answer": ""
+  },
+  {
+    "question": "卫生间地面清扫需要注意什么？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": null,
+    "error": null,
+    "retrieve_time": 0.992,
+    "answer": ""
+  },
+  {
+    "question": "机器人充电时发热严重怎么处理？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": null,
+    "error": null,
+    "retrieve_time": 0.99,
+    "answer": ""
+  }
+]

@@ -1,0 +1,10 @@
+collection_name: agent
+persist_directory: chroma_db
+k: 3
+data_path: data
+md5_hex_store: md5.txt
+allow_knowledge_file_type: ['txt','pdf']
+
+chunk_size: 200         #文本分割器分片的最大大小
+chunk_overlap: 20       #两个连续的分片之间可以有重复的字符数
+separators: ['\n\n','\n','.','!','?','。','！','？',',','，']

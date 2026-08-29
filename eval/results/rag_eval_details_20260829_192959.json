@@ -1,0 +1,92 @@
+[
+  {
+    "question": "机器人拖地时机身晃动、偏移怎么处理？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 1.201,
+    "answer": ""
+  },
+  {
+    "question": "不同地面清洁效果不一致怎么处理？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 0.875,
+    "answer": ""
+  },
+  {
+    "question": "拖地后地面还有污渍怎么解决？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 0.897,
+    "answer": ""
+  },
+  {
+    "question": "定点清扫功能不精准怎么处理？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 0.922,
+    "answer": ""
+  },
+  {
+    "question": "清扫完成后机器人不自动回充？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 1.091,
+    "answer": ""
+  },
+  {
+    "question": "镜面家具旁拖地时机器人易碰撞怎么处理？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 0.914,
+    "answer": ""
+  },
+  {
+    "question": "租房党没有阳台，如何晾干拖布？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 0.932,
+    "answer": ""
+  },
+  {
+    "question": "滤网可以用在拖地系统中吗？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 0.982,
+    "answer": ""
+  },
+  {
+    "question": "水箱没水了机器人会自动停止吗？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 0.925,
+    "answer": ""
+  },
+  {
+    "question": "清扫后地面还有灰尘、碎屑怎么办？",
+    "source": "扫地机器人100问2.txt",
+    "hit": false,
+    "judged": null,
+    "error": "'ChatTongyi' object is not callable",
+    "retrieve_time": 0.918,
+    "answer": ""
+  }
+]

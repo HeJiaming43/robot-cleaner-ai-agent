@@ -1,0 +1,272 @@
+[
+  {
+    "question": "拖地时机器人在同一区域反复停留怎么解决？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 1.219,
+    "answer": "拖地时机器人在同一区域反复停留，可能因该区域有顽固污渍导致自动重点清洁；若为误判，可在APP中设置“禁拖区域”或手动遥控离开。也可尝试手动清理污渍、重启机器人或调整清扫模式。"
+  },
+  {
+    "question": "拖布支架的卡扣断裂了可以修复吗？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.894,
+    "answer": "卡扣断裂后无法修复，需更换同款原装支架。"
+  },
+  {
+    "question": "拖布电机不转且机身发热怎么处理？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.849,
+    "answer": "立即关闭机器人电源，避免电机烧毁；检查电机是否被杂物卡死或拖布是否被毛发、杂物缠绕，清理后重启；若无法自行解决或电机仍不转，联系售后检测维修。"
+  },
+  {
+    "question": "忘记APP登录密码怎么办？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.835,
+    "answer": "在APP登录页面点击“忘记密码”，输入绑定的手机号，获取验证码后重置密码。"
+  },
+  {
+    "question": "地毯上的灰尘清理不彻底怎么处理？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.786,
+    "answer": "确认机器人支持地毯增压功能，将吸力调至最大，清理地毯表面杂物，避免机器人打滑。"
+  },
+  {
+    "question": "拖地时地面出现条纹状水痕怎么解决？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.892,
+    "answer": "拖地时地面出现条纹状水痕，可检查拖布是否脏污或发硬，及时清洗或更换；调小水箱出水量，将拖地模式改为“干拖”或“低速拖地”，避免机器人快速拖地或在同一区域反复停留。"
+  },
+  {
+    "question": "如何查询扫拖一体机器人的原装配件型号？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.979,
+    "answer": "可通过查看产品说明书、机身底部的型号标签，或在品牌官方旗舰店、APP商城中输入机器人型号来查询原装配件型号。"
+  },
+  {
+    "question": "防跌落功能失效怎么办？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.936,
+    "answer": "擦拭底部防跌落传感器，检查是否被灰尘遮挡或损坏，将机器人置于平整地面测试，若仍失效则联系售后更换。"
+  },
+  {
+    "question": "如何设置先扫后拖的清洁流程？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": false,
+    "judged": false,
+    "error": null,
+    "retrieve_time": 0.868,
+    "answer": "在APP的【清扫设置】中选择清洁模式为先扫后拖，并可设置1-3次清洁次数以增强清洁效果。"
+  },
+  {
+    "question": "拖扫时机器人将杂物推来推去吸不进去怎么办？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.869,
+    "answer": "检查吸口是否堵塞，将吸力调至最高档，清理主刷和边刷的缠绕物；若为大颗粒杂物，建议手动清理后再让机器人工作。"
+  },
+  {
+    "question": "桌面、窗台掉落的零食渣掉至地面，如何快速清理？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.817,
+    "answer": "开启“定点扫拖”模式，将机器人定位至掉落区域，设置大吸力+中档出水量，快速清理零食渣和污渍。"
+  },
+  {
+    "question": "拖布旋转时发出“咔咔”异响怎么解决？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.856,
+    "answer": "拆卸拖布，清理支架内缠绕的毛发、线头和细小杂物，检查拖布电机轴承是否缺油，滴少量专用润滑油（切勿过多）。"
+  },
+  {
+    "question": "瓷砖地面的缝隙污渍拖不干净怎么处理？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.925,
+    "answer": "开启“高频振动拖地”功能（部分机型支持），将出水量调至中档，配合专用瓷砖清洁液，多次拖扫缝隙区域。"
+  },
+  {
+    "question": "有儿童的家庭使用机器人需要注意什么？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.836,
+    "answer": "有儿童的家庭使用机器人需注意：设置儿童房为禁区，避免机器人碰撞玩具；将机器人放在儿童接触不到的地方充电；定期检查耗材；开启童锁功能，防止小零件被误吞。"
+  },
+  {
+    "question": "扫拖一体机器人可以只扫地不拖地吗？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.806,
+    "answer": "可以，在配套APP中进入【清扫模式】，关闭“拖地功能”，仅保留吸尘模式即可单独扫地。"
+  },
+  {
+    "question": "“防跌落传感器故障”报警如何解决？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.89,
+    "answer": "用干布擦拭机器人底部防跌落传感器，避免灰尘遮挡；检查传感器是否损坏，必要时联系售后更换。"
+  },
+  {
+    "question": "地毯区域不想拖地怎么设置？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.888,
+    "answer": "在APP中对地毯区域设置“禁拖区”，机器人扫至该区域时会自动抬升拖布或跳过拖地，仅保留扫地功能。"
+  },
+  {
+    "question": "机器人充电时拖地模组仍在工作怎么处理？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.917,
+    "answer": "重启机器人，确认是否因系统卡顿导致功能异常；若仍故障，在APP中恢复出厂设置，重新设置清扫参数。"
+  },
+  {
+    "question": "机器人跨越门槛后拖地功能自动关闭怎么解决？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.842,
+    "answer": "检查门槛高度是否超出机器人适配范围，开启“越障后恢复拖地”功能（部分机型支持），或手动辅助机器人跨越后重启拖地。"
+  },
+  {
+    "question": "机器人跨越门槛失败怎么办？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.743,
+    "answer": "确认门槛高度是否超过机器人越障能力（一般不超过2cm），清理门槛处杂物，手动辅助机器人跨越一次以帮助其记忆位置。"
+  },
+  {
+    "question": "拖地后地面还有污渍怎么解决？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.877,
+    "answer": "检查拖布是否脏污或硬化，及时清洗或更换；针对顽固污渍，可手动喷洒清洁剂后让机器人重新拖地。"
+  },
+  {
+    "question": "机器人开机后直接回充怎么处理？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.917,
+    "answer": "机器人开机后直接回充，应先检查剩余电量，若低于20%会优先回充；若电量充足，则重启设备并重置清扫模式。"
+  },
+  {
+    "question": "如何清洁拖地系统的传感器？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.847,
+    "answer": "用干软布或无尘布轻轻擦拭传感器表面，避免使用湿布或酒精，以防传感器受潮或损坏。"
+  },
+  {
+    "question": "长时间出差，如何设置机器人自动扫拖？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.823,
+    "answer": "在APP中设置“定时扫拖”，选择合适的出水量和吸力，确保水箱水量充足、尘盒为空，并开启“完成后自动回充”功能。"
+  },
+  {
+    "question": "儿童房有零食渍、果汁渍怎么清理？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.952,
+    "answer": "用清水稀释少量果蔬清洁剂加注水箱，开启定点拖地模式清洁，之后再用清水拖扫一次，避免清洁剂残留。"
+  },
+  {
+    "question": "分区清扫无法选择区域怎么解决？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.842,
+    "answer": "确认地图建图完整，删除旧地图重新建图；更新APP和机器人体内系统；重启APP或机器人后重新设置分区。"
+  },
+  {
+    "question": "如何判断扫拖一体机器人是否需要更换新机？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.865,
+    "answer": "若扫拖一体机器人使用3年以上，出现吸力严重下降、拖地模组频繁故障、建图错乱且维修费用超过新机价格的1/3，建议更换新机。"
+  },
+  {
+    "question": "可水洗拖布多久清洗一次？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.761,
+    "answer": "可水洗拖布每次清扫完成后都需清洗，避免污渍残留硬化；宠物家庭或油污区域建议单次使用后立即清洗。"
+  },
+  {
+    "question": "机器人体内系统如何升级？",
+    "source": "扫地机器人100问2.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.902,
+    "answer": "机器人体内系统升级需在连接WiFi后，通过APP提示点击“立即升级”，升级过程中保持机器人开机和网络连接，切勿断电。"
+  },
+  {
+    "question": "拖布支架松动怎么固定？",
+    "source": "扫拖一体机器人100问.txt",
+    "hit": true,
+    "judged": true,
+    "error": null,
+    "retrieve_time": 0.853,
+    "answer": "检查拖布支架卡扣是否断裂；若卡扣完好，将支架对准机身卡槽用力按压至发出“咔哒”声，确保安装到位；若卡扣已断裂，则需更换原装支架。"
+  }
+]
