@@ -14,6 +14,9 @@ from datetime import datetime
 import streamlit as st
 
 from utils.config_handler import chroma_conf
+from utils.auth import admin_configured, verify_admin_password
+from utils.content_guard import decode_for_scan, detect_injection
+from utils.errors import new_error_code, friendly_error_message, EMPTY_ANSWER_MESSAGE
 from utils.logger_handler import logger
 from utils.path_tool import get_abs_path
 
@@ -346,12 +349,15 @@ def page_customer_service():
                 ).strip()
                 if not answer:
                     thinking.empty()
-                    answer = "抱歉，我暂时无法回答这个问题。"
+                    answer = EMPTY_ANSWER_MESSAGE
                     st.markdown(answer)
             except Exception as e:
+                # 技术细节只进日志，用户侧仅给错误码（问题 P0-6）
                 thinking.empty()
-                answer = f"抱歉，系统出错了：{e}"
-                st.error(answer)
+                error_code = new_error_code()
+                logger.error(f"[对话失败] 错误码 {error_code}: {e}", exc_info=True)
+                answer = friendly_error_message(error_code)
+                st.warning(answer)
 
             ans_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             st.session_state.messages.append({
@@ -385,6 +391,34 @@ def render_kb_status():
         st.caption(f"*ChromaDB 未就绪: {e}*")
 
 
+def render_kb_auth():
+    """知识库写入鉴权（问题 P0-5：原页面无任何认证，任意访客可替换知识库）。"""
+    st.markdown('<div class="sidebar-section-title">🔐 管理权限</div>', unsafe_allow_html=True)
+
+    if st.session_state.get("kg_authed"):
+        st.success("已通过鉴权：可执行导入与重建")
+        if st.button("退出管理", use_container_width=True, key="kb_logout"):
+            st.session_state.kg_authed = False
+            st.rerun()
+        return
+
+    if not admin_configured():
+        st.warning(
+            "未配置 `KB_ADMIN_PASSWORD`，知识库写入已禁用（只读）。\n\n"
+            "需要写入时请先设置环境变量后重启应用。"
+        )
+        return
+
+    password = st.text_input("管理口令", type="password", key="kb_password")
+    if st.button("验证口令", use_container_width=True, key="kb_login"):
+        if verify_admin_password(password):
+            st.session_state.kg_authed = True
+            st.rerun()
+        else:
+            logger.warning("知识库管理口令校验失败")
+            st.error("口令不正确")
+
+
 def render_kb_sidebar():
     st.markdown('<div class="sidebar-section-title">📋 支持格式</div>', unsafe_allow_html=True)
     st.info(
@@ -393,12 +427,17 @@ def render_kb_sidebar():
     )
 
     st.divider()
+    render_kb_auth()
+
+    st.divider()
     st.markdown('<div class="sidebar-section-title">📊 知识库状态</div>', unsafe_allow_html=True)
     render_kb_status()
 
     st.divider()
     st.markdown('<div class="sidebar-section-title">🔄 重建知识库</div>', unsafe_allow_html=True)
-    if st.button("从 data 目录全量重建", use_container_width=True):
+    if not st.session_state.get("kg_authed"):
+        st.caption("🔒 需先完成口令验证")
+    elif st.button("从 data 目录全量重建", use_container_width=True):
         with st.spinner("重建中，请稍候…"):
             vector_service = get_vector_service()
             count = vector_service.rebuild_knowledge_base()
@@ -419,27 +458,45 @@ def page_knowledge_management():
 
     col_left, col_right = st.columns([3, 2], gap="large")
 
-    # ---- 左栏：上传新文档 ----
+    # ---- 左栏：上传新文档（需鉴权 + 内容安全检查） ----
+    authed = bool(st.session_state.get("kg_authed"))
     with col_left:
         st.markdown("### 📤 上传新文档")
+        if not authed:
+            st.info("🔒 上传与重建属于管理操作，请先在侧边栏完成口令验证。")
+
         uploaded_files = st.file_uploader(
             "选择 PDF 或 TXT 文件（可多选）",
             type=["pdf", "txt"],
             accept_multiple_files=True,
+            disabled=not authed,
+            key="kb_uploader",
         )
-        st.caption("单个文件不超过 2 MB")
+        st.caption("单个文件不超过 2 MB；导入前会检查是否含可疑指令内容")
 
         valid_files = []
-        if uploaded_files:
+        if uploaded_files and authed:
             for file in uploaded_files:
                 if file.size > 2 * 1024 * 1024:
                     st.warning(f"⛔ `{file.name}` 超过 2 MB，已跳过")
-                else:
-                    valid_files.append(file)
+                    continue
+
+                # 知识库文档会进入模型上下文，先拦一道明显的提示注入特征
+                raw = bytes(file.getbuffer())
+                markers = detect_injection(decode_for_scan(raw))
+                if markers:
+                    logger.warning(f"[知识库导入] 拒绝可疑文件 {file.name}: {markers}")
+                    st.error(
+                        f"⛔ `{file.name}` 命中可疑指令特征（{', '.join(markers[:3])}），已拒绝导入。"
+                        "请人工复核并清理该内容后重试。"
+                    )
+                    continue
+
+                valid_files.append(file)
 
             if st.button("🚀 导入知识库", type="primary", use_container_width=True):
                 if not valid_files:
-                    st.warning("没有符合大小限制的文件可导入。")
+                    st.warning("没有通过校验的文件可导入。")
                 else:
                     data_dir = get_abs_path(chroma_conf["data_path"])
                     os.makedirs(data_dir, exist_ok=True)

@@ -28,8 +28,19 @@ def monitor_tool(
 
         return result
     except Exception as e:
-        logger.error(f'工具{tool_name}调用失败,原因:{str(e)}')
-        raise
+        # 单个工具失败不应击穿整轮对话（问题 P0-6）：
+        # 转为结构化错误回传给模型，由模型决定换工具或如实告知用户。
+        logger.error(f'工具{tool_name}调用失败,原因:{str(e)}', exc_info=True)
+        return ToolMessage(
+            content=(
+                f"工具 {tool_name} 执行失败（{type(e).__name__}）。"
+                "请勿编造该工具本应返回的数据；可改用其他工具，"
+                "或如实告知用户该项信息暂时无法获取。"
+            ),
+            tool_call_id=request.tool_call.get("id", ""),
+            name=tool_name,
+            status="error",
+        )
 
 
 @before_model
