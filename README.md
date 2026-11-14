@@ -25,7 +25,7 @@
 |------|------|
 | Web 界面 | Streamlit |
 | Agent 框架 | LangChain / LangGraph ReAct |
-| 大模型 | 通义千问 qwen3-max（DashScope） |
+| 大模型 | 通义千问 qwen3.8-flash（DashScope **OpenAI 兼容端点**） |
 | 向量检索 | ChromaDB + qwen3.7-text-embedding-flash（1024 维） |
 | 天气数据（可选） | Open-Meteo（免密钥，`weather_provider: open-meteo` 时启用；默认关闭） |
 | 文档解析 | PyPDFLoader / TextLoader |

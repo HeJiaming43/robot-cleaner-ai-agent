@@ -1,3 +1,4 @@
+import contextvars
 import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
@@ -48,6 +49,11 @@ def _iter_with_stall_timeout(iterator, timeout_seconds: float):
     给流式迭代加「静默超时」看门狗（问题 P1-5）：
     超过 timeout_seconds 没有新 chunk 即抛 TimeoutError，由上层转为可读错误。
     timeout_seconds <= 0 时不启用，行为与原先完全一致。
+
+    注意：工作线程默认不继承 contextvars。必须把当前上下文复制进去，
+    否则 agent 图里执行的工具读不到会话身份（ContextVar），
+    表现为「生成报告时提示缺少会话身份」。这里用 copy_context().run 逐次提交，
+    保证工具看到的上下文与调用方一致。
     """
     if not timeout_seconds or timeout_seconds <= 0:
         yield from iterator
@@ -56,7 +62,8 @@ def _iter_with_stall_timeout(iterator, timeout_seconds: float):
     pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="llm-stream")
     try:
         while True:
-            future = pool.submit(next, iterator, _STREAM_END)
+            context = contextvars.copy_context()
+            future = pool.submit(context.run, next, iterator, _STREAM_END)
             try:
                 item = future.result(timeout=timeout_seconds)
             except FuturesTimeoutError:

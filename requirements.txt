@@ -7,6 +7,9 @@ langchain-core==1.6.4
 langchain-community==0.4.1
 langchain-chroma==1.1.0
 langchain-text-splitters==1.1.0
+# 对话模型走 DashScope 的 OpenAI 兼容端点（原生 tongyi SDK 端点不认新模型）
+langchain-openai==1.6.5
+openai==3.19.2
 streamlit==1.59.1
 
 dashscope==1.25.12

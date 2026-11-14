@@ -1,6 +1,14 @@
-# 注意：chat_model_name 必须与账号实际可用的模型一致，
-# 否则接口返回 404 Model not exist（当前环境实测 qwen3-max 不可用，需按账号改为 qwen-plus 等）
-chat_model_name: qwen3-max
+# 对话模型：通过 DashScope 的 OpenAI 兼容端点调用（base_url 见下）。
+# 新版模型（qwen3.8-flash 等）在旧版原生 SDK 端点会报 "url error"，故统一走兼容端点。
+chat_model_name: qwen3.8-flash
+# 留空则使用默认兼容端点 https://dashscope.aliyuncs.com/compatible-mode/v1
+chat_base_url: ""
+# 是否开启模型思考（qwen3.8-flash）。
+# 实测：关闭后输出 token 约 1/3、单轮耗时约 1/2，但会带来两个问题——
+#   1) 把内部推理混进正文（回答开头出现"用户询问…这是一个…问题"这类独白）；
+#   2) 自行发出名为 final_answer 的工具调用，绕开既定工具链。
+# 因此默认保持开启；仅在你确认目标模型支持干净关闭思考时再改为 false。
+chat_enable_thinking: true
 
 # 嵌入模型：1024 维。更换此值后【必须全量重建知识库】——
 # 不同模型的向量不在同一语义空间，维度相同也不会报错，只会静默检索出不相干内容。

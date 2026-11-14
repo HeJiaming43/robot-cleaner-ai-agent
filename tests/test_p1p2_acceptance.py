@@ -266,6 +266,20 @@ def test_stall_timeout_passes_fast_stream():
     assert list(_iter_with_stall_timeout(iter(["a", "b"]), 5)) == ["a", "b"]
 
 
+def test_stall_timeout_propagates_contextvars():
+    """看门狗把执行搬到工作线程后，工具仍必须能读到会话身份（ContextVar）。"""
+    from agent.identity import current_user_id, session_scope
+
+    def identity_reader():
+        yield current_user_id()
+
+    with session_scope("ctx-test"):
+        expected = current_user_id()
+        result = list(_iter_with_stall_timeout(identity_reader(), 5))
+
+    assert result == [expected], "工作线程丢失 contextvars 会导致报告链路报「缺少会话身份」"
+
+
 # ------------------------------------------------------------ P2-3 兜底与工单
 def test_escalation_normal_answer_not_triggered():
     decision = assess("滤网建议每两周清理一次。[参考资料1]", "滤网多久清理")
