@@ -1,6 +1,9 @@
 collection_name: agent
 persist_directory: chroma_db
 k: 3
+# 检索可信度阈值：低于此值会在资料前标注「检索可信度低」，提示模型不得编造
+# 注意：该值需用独立评测集校准；当前偏保守，优先避免误判导致正常问题被拒答
+score_threshold: 0.15
 data_path: data
 md5_hex_store: md5.txt
 allow_knowledge_file_type: ['txt','pdf']

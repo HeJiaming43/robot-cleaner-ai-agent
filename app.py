@@ -96,8 +96,8 @@ def get_vector_service():
     _preload_done.wait(timeout=95)
     if _preloaded["vector_service"] is not None:
         return _preloaded["vector_service"]
-    from rag.vector_store import VectorStoreService
-    return VectorStoreService()
+    from rag.vector_store import get_shared_vector_store
+    return get_shared_vector_store()
 
 
 @st.cache_resource(show_spinner=False)
@@ -115,8 +115,8 @@ def _load_vector_service():
     if _preloaded["vector_service"] is not None:
         return
     logger.info("[预热] 开始加载向量库服务")
-    from rag.vector_store import VectorStoreService
-    _preloaded["vector_service"] = VectorStoreService()
+    from rag.vector_store import get_shared_vector_store
+    _preloaded["vector_service"] = get_shared_vector_store()
     logger.info("[预热] 向量库服务加载完成")
 
 
@@ -335,7 +335,11 @@ def page_customer_service():
                     yield delta
 
             try:
-                answer = st.write_stream(collect(get_agent().execute_stream(question))).strip()
+                # 已把当前问题追加进 messages，故上下文取其之前的部分
+                history = st.session_state.messages[:-1]
+                answer = st.write_stream(
+                    collect(get_agent().execute_stream(question, history=history))
+                ).strip()
                 if not answer:
                     thinking.empty()
                     answer = "抱歉，我暂时无法回答这个问题。"

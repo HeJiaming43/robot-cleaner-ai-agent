@@ -22,7 +22,9 @@ def _get_rag():
     global _rag
     if _rag is None:
         from rag.rag_service import RagSummarizeService
-        _rag = RagSummarizeService()
+        from rag.vector_store import get_shared_vector_store
+        # 复用进程内共享实例：与检索前置、UI 状态读取共用同一 Chroma 客户端
+        _rag = RagSummarizeService(vector_store=get_shared_vector_store())
     return _rag
 
 user_ids = ["1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", "1010"]

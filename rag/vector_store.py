@@ -1,4 +1,5 @@
 import os
+import threading
 from langchain_core.documents import Document
 from model.factory import embed_model
 from langchain_chroma import Chroma
@@ -24,8 +25,29 @@ class VectorStoreService:
             length_function=len,
         )
 
-    def get_retriever(self):
-        return self.vector_store.as_retriever(search_kwargs={"k": chroma_conf["k"]})
+    def get_retriever(self, k: int | None = None):
+        return self.vector_store.as_retriever(search_kwargs={"k": k or chroma_conf["k"]})
+
+    def search_with_scores(self, query: str, k: int | None = None) -> list[tuple[Document, float]]:
+        """
+        带相关度返回检索结果，供「检索前置」判断资料可信度。
+        相关度来自 Chroma 的 relevance score（越大越相关）；不强行裁剪到 [0,1]，
+        避免不同距离度量下被误判为 0。检索失败时降级为普通检索（分数置 0）。
+        """
+        top_k = k or chroma_conf["k"]
+        try:
+            pairs = self.vector_store.similarity_search_with_relevance_scores(query, k=top_k)
+        except Exception as e:
+            logger.warning(f"[知识库检索] 带分数检索失败，降级为普通检索: {e}")
+            return [(doc, 0.0) for doc in self.get_retriever(top_k).invoke(query)]
+
+        results: list[tuple[Document, float]] = []
+        for doc, score in pairs:
+            try:
+                results.append((doc, float(score)))
+            except (TypeError, ValueError):
+                results.append((doc, 0.0))
+        return results
 
     def load_document(self):
         md5_store_path = get_abs_path(chroma_conf["md5_hex_store"])
@@ -111,6 +133,24 @@ class VectorStoreService:
         )
 
         return self.load_document()
+
+
+_shared_instance: VectorStoreService | None = None
+_shared_lock = threading.Lock()
+
+
+def get_shared_vector_store() -> VectorStoreService:
+    """
+    进程内共享单例。
+    Agent 的检索前置、rag_summarize 工具、UI 的知识库状态读取都取用同一实例，
+    避免重复初始化 Chroma 客户端与嵌入模型（原实现存在两份实例，冷启动翻倍）。
+    """
+    global _shared_instance
+    if _shared_instance is None:
+        with _shared_lock:
+            if _shared_instance is None:
+                _shared_instance = VectorStoreService()
+    return _shared_instance
 
 
 if __name__ == "__main__":
