@@ -8,7 +8,6 @@ from langchain_core.tools import tool
 import random
 from utils.config_handler import agent_conf
 from utils.path_tool import get_abs_path
-from utils.location_service import get_amap_weather, get_location_text
 
 
 _rag = None
@@ -51,29 +50,89 @@ def rag_summarize(query: str) -> str:
         )
     return "\n".join(context_lines)
 
-@tool(description="获取指定城市的天气，以消息字符串的形式返回")
+_GEO_URL = "https://geocoding-api.open-meteo.com/v1/search"
+_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+def _weather_unavailable(city: str) -> str:
+    """天气数据不可用时的统一回应：明确告知，禁止模型编造。"""
+    return (
+        f"实时天气数据不可用，无法获取{city}当前天气。"
+        "请勿编造任何天气数值；应改为基于知识库中潮湿、雨季、低温等环境相关的保养建议作答，"
+        "并向用户明确说明当前无法查询实时天气。"
+    )
+
+
+def _fetch_open_meteo(city: str) -> str:
+    """
+    调用免密钥的 Open-Meteo（地理编码 + 实时天气）。
+    仅在 weather_provider=open-meteo 时启用；import requests 延迟到此处，
+    使默认不联网的部署完全不依赖 requests。
+    返回空字符串表示未取到数据，由调用方降级。
+    """
+    import requests
+
+    geo_resp = requests.get(
+        _GEO_URL, params={"name": city, "count": 1, "language": "zh"}, timeout=3
+    )
+    results = (geo_resp.json() or {}).get("results") or []
+    if not results:
+        logger.info(f"[get_weather] 城市地理编码未命中: {city}")
+        return ""
+
+    latitude = results[0]["latitude"]
+    longitude = results[0]["longitude"]
+
+    resp = requests.get(
+        _FORECAST_URL,
+        params={
+            "latitude": latitude,
+            "longitude": longitude,
+            "current": "temperature_2m,relative_humidity_2m,weather_code",
+            "timezone": "auto",
+        },
+        timeout=3,
+    )
+    current = (resp.json() or {}).get("current") or {}
+    if not current:
+        return ""
+
+    return (
+        f"{city}实时天气：天气代码{current.get('weather_code', '未知')}，"
+        f"气温{current.get('temperature_2m', '未知')}摄氏度，"
+        f"相对湿度{current.get('relative_humidity_2m', '未知')}%，"
+        f"观测时间{current.get('time', '未知')}（数据来源：Open-Meteo）"
+    )
+
+
+@tool(
+    description=(
+        "获取指定城市的实时天气。city 为用户所在城市名称。"
+        "返回内容可能为『实时天气数据不可用』，此时你必须如实告知用户无法查询，"
+        "并改为基于知识库给出环境适配建议，严禁编造天气数值"
+    )
+)
 def get_weather(city: str) -> str:
-    weather = get_amap_weather(city)
-    if weather:
-        return weather
-    # 未配置高德 Key 或查询失败时的演示兜底
-    return f'城市{city}天气为晴天，气温26摄氏度，空气湿度50%，南风1级，AQI21，最近6小时降雨概率极低'
+    """
+    天气工具：数据源由 config/agent.yml 的 weather_provider 决定。
+      - none（默认）：不发起任何外网请求，返回明确的不可用提示
+      - open-meteo：调用免密钥的 Open-Meteo，失败时同样明确降级
+    任何分支都不会返回伪造的天气数据。
+    """
+    provider = str(agent_conf.get("weather_provider", "none") or "none").strip().lower()
+    city = (city or "").strip()
 
-_cached_location = None
+    if not city:
+        return "未提供城市名称，无法查询天气。请先向用户确认其所在城市。"
 
-def _get_cached_location() -> str:
-    """带缓存的位置获取，避免重复网络请求。"""
-    global _cached_location
-    if _cached_location is None:
-        _cached_location = get_location_text()
-    return _cached_location
+    if provider == "none":
+        return _weather_unavailable(city)
 
-
-@tool(description="获取用户所在城市的名称，以纯字符串形式返回")
-def get_user_location() -> str:
-    # 高德 IP 定位返回"省份+城市"（如：福建省厦门市），这里转换为纯城市名
-    location = _get_cached_location()
-    return _parse_city_from_location(location)
+    try:
+        return _fetch_open_meteo(city) or _weather_unavailable(city)
+    except Exception as e:
+        logger.warning(f"[get_weather] 天气数据源异常（provider={provider}）: {e}")
+        return _weather_unavailable(city)
 
 @tool(description="获取用户的ID，以纯字符串形式返回")
 def get_user_id() -> str:
@@ -86,15 +145,6 @@ def get_user_id() -> str:
 def get_current_month() -> str:
     return datetime.now().strftime('%Y-%m')
 
-
-def _parse_city_from_location(location: str) -> str:
-    """将"福建省厦门市"这类定位文本解析为纯城市名（直辖市直接返回）。"""
-    for suffix in ('省', '自治区', '特别行政区'):
-        idx = location.find(suffix)
-        if idx != -1:
-            city = location[idx + len(suffix):]
-            return city or location
-    return location
 
 def generate_external_data():
     if not external_data:

@@ -2,23 +2,24 @@
 智净灵境 — 扫地/拖地机器人智能客服系统
 Streamlit Web 服务，双页面：智能客服（用户端）+ 知识库管理（商家端）
 
-定位能力：接入高德地图 Web 服务 API，通过公网 IP 获取用户所在城市，
-并在欢迎语与 Agent 工具中体现（config/agent.yml 或环境变量 AMAP_API_KEY 配置 Key）。
+关于定位：原「高德 IP 自动定位」已移除。该能力通过服务端公网 IP 反查，
+获取的是服务器所在城市而非访客所在城市，属伪个性化；且失败时回退固定常量，
+会把虚构位置讲给用户。城市信息现由用户在对话中自然语言提供。
 """
 import os
 import threading
+import uuid
 from datetime import datetime
 
 import streamlit as st
 
 from utils.config_handler import chroma_conf
-from utils.location_service import get_location_text
 from utils.logger_handler import logger
 from utils.path_tool import get_abs_path
 
 
 _preload_done = threading.Event()
-_preloaded = {"vector_service": None, "agent": None, "location": None}
+_preloaded = {"vector_service": None, "agent": None}
 
 
 # ============================================================
@@ -129,15 +130,6 @@ def _load_agent():
     logger.info("[预热] 智能客服引擎加载完成")
 
 
-def _load_location():
-    """后台线程专用：预加载用户位置信息。"""
-    if _preloaded["location"] is not None:
-        return
-    logger.info("[预热] 开始获取用户位置")
-    _preloaded["location"] = get_location_text()
-    logger.info(f"[预热] 用户位置获取完成: {_preloaded["location"]}")
-
-
 def _preload_heavy_services():
     """
     后台预热重量级服务（Agent 引擎 + 向量库），
@@ -147,7 +139,6 @@ def _preload_heavy_services():
     threads = [
         threading.Thread(target=_load_vector_service, daemon=True),
         threading.Thread(target=_load_agent, daemon=True),
-        threading.Thread(target=_load_location, daemon=True),
     ]
     try:
         # 两个重依赖并行导入；join 设置上限，避免异常环境导致永久阻塞
@@ -168,13 +159,16 @@ def _preload_heavy_services():
 def init_session_state():
     defaults = {
         "messages": [],            # [{"role", "content", "timestamp", "question"}]
-        "user_location": "",
-        "location_ready": False,
         "pending_question": "",
+        "kg_authed": False,        # 知识库管理鉴权状态
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+    # 会话身份：仅生成一次并贯穿整个会话，不再使用进程级随机用户ID
+    if not st.session_state.get("session_id"):
+        st.session_state.session_id = uuid.uuid4().hex[:12]
 
 
 # ============================================================
@@ -186,7 +180,6 @@ def generate_chat_markdown(messages: list) -> str:
         "# 智净灵境 · 对话记录",
         "",
         f"**导出时间：** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        f"**用户位置：** {st.session_state.get('user_location', '未知')}",
         "",
         "---",
         "",
@@ -216,7 +209,6 @@ def generate_answer_markdown(question: str, answer: str, ts: str) -> str:
         "# 智净灵境 · 问答记录",
         "",
         f"**时间：** {ts}",
-        f"**用户位置：** {st.session_state.get('user_location', '未知')}",
         "",
         "---",
         "",
@@ -283,20 +275,12 @@ def page_customer_service():
     </div>
     """, unsafe_allow_html=True)
 
-    # ---- 位置欢迎语（高德 IP 定位） ----
-    location = st.session_state.get("user_location", "")
-    if location:
-        st.markdown(f"""
-        <div class="location-badge">
-            📍 <strong>{location}</strong> 的用户，欢迎您咨询智净灵境扫地/拖地机器人智能客服系统
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="location-badge">
-            🌐 欢迎您咨询扫地/拖地机器人相关问题
-        </div>
-        """, unsafe_allow_html=True)
+    # ---- 欢迎语（城市信息由用户在对话中提供，不再做 IP 自动定位） ----
+    st.markdown(f"""
+    <div class="location-badge">
+        🌐 欢迎您咨询智净灵境扫地 / 拖地机器人智能客服 · 会话 {st.session_state.session_id}
+    </div>
+    """, unsafe_allow_html=True)
 
     # ---- 侧边栏：会话管理 + 快捷提问 ----
     with st.sidebar:
@@ -507,17 +491,7 @@ def main():
         st.session_state._preload_started = True
         threading.Thread(target=_preload_heavy_services, daemon=True).start()
 
-    # 首次加载时获取用户位置（已在后台预热中完成，不阻塞 UI）
-    if not st.session_state.location_ready:
-        if _preloaded["location"] is not None:
-            st.session_state.user_location = _preloaded["location"]
-        else:
-            # 预热未完成时先等待，最多阻塞几秒
-            _preload_done.wait(timeout=10)
-            st.session_state.user_location = _preloaded.get("location") or ""
-        st.session_state.location_ready = True
-        st.rerun()
-
+    # 首次加载不再做位置探测：原逻辑需阻塞等待最长 10 秒并额外触发一次全页 rerun
     # ---- 侧边导航 ----
     with st.sidebar:
         st.markdown("## 🧭 导航")

@@ -1,8 +1,8 @@
 external_data_path: data/external/records.csv
 
-# 高德地图 Web 服务 Key（https://console.amap.com/ 申请）
-# 也可以在环境变量中配置 AMAP_API_KEY，环境变量优先
-amap_api_key: ""
-
-# 未配置 Key 或定位失败时的兜底位置
-fallback_location: 福建省厦门市
+# 天气数据源：
+#   none        —— 默认。完全不联网，天气工具返回「实时天气数据不可用」，由模型基于知识库作答
+#   open-meteo  —— 免密钥的 Open-Meteo 接口，需要外网；失败时同样明确降级，绝不返回伪造数据
+# 已移除高德 IP 自动定位：服务端公网 IP 反映的是服务器位置而非访客位置，属伪个性化；
+# 且未配置 Key 时会回退到固定城市常量，等于把虚构位置讲给用户。
+weather_provider: none
