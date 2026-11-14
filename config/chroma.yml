@@ -13,6 +13,8 @@ data_path: data
 md5_hex_store: md5.txt
 allow_knowledge_file_type: ['txt','pdf']
 
-chunk_size: 200         #文本分割器分片的最大大小
-chunk_overlap: 20       #两个连续的分片之间可以有重复的字符数
+# 分片大小：200 字符会把「问题 + 答案 + 注意事项」切散，500 更贴近一条完整问答；
+# 修改此值后需全量重建才生效
+chunk_size: 500         #文本分割器分片的最大大小
+chunk_overlap: 50       #两个连续的分片之间可以有重复的字符数
 separators: ['\n\n','\n','.','!','?','。','！','？',',','，']

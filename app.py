@@ -115,6 +115,23 @@ def get_agent():
     return ReactAgent()
 
 
+def current_index_mismatch():
+    """
+    索引指纹校验：更换嵌入模型但未重建时返回 (索引模型, 当前模型)。
+    预热尚未完成时返回 None，避免为了一个提示而阻塞首屏。
+    """
+    service = warmup.preloaded_vector_service()
+    if service is None:
+        if not warmup.is_ready():
+            return None
+        service = get_vector_service()
+    try:
+        return service.embedding_model_mismatch()
+    except Exception as e:
+        logger.warning(f"[知识库] 索引指纹校验失败: {e}")
+        return None
+
+
 # ============================================================
 # 会话状态初始化
 # ============================================================
@@ -218,7 +235,7 @@ def render_session_sidebar():
     st.markdown('<div class="sidebar-section-title">⚡ 快捷提问</div>', unsafe_allow_html=True)
     quick_questions = [
         "扫地机器人日常如何保养？",
-        "机器人报E13错误代码怎么办？",
+        "机器人被卡住了怎么处理？",
         "如何选购适合宠物家庭的扫地机？",
         "扫拖一体机和单独扫地机哪个好？",
         "机器人吸力变弱如何排查？",
@@ -453,6 +470,13 @@ def render_kb_sidebar():
     st.markdown('<div class="sidebar-section-title">📊 知识库状态</div>', unsafe_allow_html=True)
     render_kb_status()
 
+    mismatch = current_index_mismatch()
+    if mismatch:
+        st.error(
+            f"索引由 `{mismatch[0]}` 构建，当前配置为 `{mismatch[1]}`。\n\n"
+            "检索结果不可信，请执行一次全量重建；重建前增量导入会被拒绝。"
+        )
+
     st.divider()
     st.markdown('<div class="sidebar-section-title">🔄 重建知识库</div>', unsafe_allow_html=True)
     if not st.session_state.get("kg_authed"):
@@ -478,24 +502,31 @@ def page_knowledge_management():
 
     col_left, col_right = st.columns([3, 2], gap="large")
 
-    # ---- 左栏：上传新文档（需鉴权 + 内容安全检查） ----
+    # ---- 左栏：上传新文档（需鉴权 + 内容安全检查 + 索引指纹一致） ----
     authed = bool(st.session_state.get("kg_authed"))
+    mismatch = current_index_mismatch()
+    can_write = authed and not mismatch
     with col_left:
         st.markdown("### 📤 上传新文档")
         if not authed:
             st.info("🔒 上传与重建属于管理操作，请先在侧边栏完成口令验证。")
+        elif mismatch:
+            st.error(
+                f"索引由 `{mismatch[0]}` 构建，当前配置为 `{mismatch[1]}`，"
+                "混入新模型的向量会让检索静默失效。请先在侧边栏执行全量重建。"
+            )
 
         uploaded_files = st.file_uploader(
             "选择 PDF 或 TXT 文件（可多选）",
             type=["pdf", "txt"],
             accept_multiple_files=True,
-            disabled=not authed,
+            disabled=not can_write,
             key="kb_uploader",
         )
         st.caption("单个文件不超过 2 MB；导入前会检查是否含可疑指令内容")
 
         valid_files = []
-        if uploaded_files and authed:
+        if uploaded_files and can_write:
             for file in uploaded_files:
                 if file.size > 2 * 1024 * 1024:
                     st.warning(f"⛔ `{file.name}` 超过 2 MB，已跳过")

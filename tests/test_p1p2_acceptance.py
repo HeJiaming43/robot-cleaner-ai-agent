@@ -160,6 +160,75 @@ def test_rag_service_does_not_cache_retriever():
         "retriever 必须是动态属性，否则蓝绿切换后仍指向旧集合"
 
 
+# -------------------------------------------------- 嵌入模型指纹（换模型必查）
+def _manifest_stub(tmp: str, count: int = 10):
+    from rag import vector_store as vsmod
+
+    svc = vsmod.VectorStoreService.__new__(vsmod.VectorStoreService)
+    svc.collection_name = "agent"
+    svc._manifest_path = lambda: os.path.join(tmp, "index_manifest.json")
+    svc.vector_store = type("S", (), {
+        "_collection": type("C", (), {"count": lambda self: count})()
+    })()
+    return svc
+
+
+def test_manifest_records_and_detects_model_change():
+    from rag import vector_store as vsmod
+
+    with tempfile.TemporaryDirectory() as tmp:
+        svc = _manifest_stub(tmp)
+        original = vsmod.rag_conf["embedding_model_name"]
+        try:
+            vsmod.rag_conf["embedding_model_name"] = "model-a"
+            svc._write_manifest_entry("agent", files=6, chunks=123)
+            assert svc.recorded_embedding_model() == "model-a"
+            assert svc.embedding_model_mismatch() is None
+
+            vsmod.rag_conf["embedding_model_name"] = "model-b"
+            assert svc.embedding_model_mismatch() == ("model-a", "model-b"), \
+                "换模型后必须判定为不一致，否则检索会静默劣化"
+        finally:
+            vsmod.rag_conf["embedding_model_name"] = original
+
+
+def test_manifest_flags_legacy_index_without_fingerprint():
+    with tempfile.TemporaryDirectory() as tmp:
+        svc = _manifest_stub(tmp, count=328)
+        assert svc.recorded_embedding_model() == ""
+        assert svc.embedding_model_mismatch()[0] == "unknown", "有数据但无指纹应提示重建"
+
+
+def test_manifest_ignores_empty_index_without_fingerprint():
+    with tempfile.TemporaryDirectory() as tmp:
+        svc = _manifest_stub(tmp, count=0)
+        assert svc.embedding_model_mismatch() is None, "空索引无需提示重建"
+
+
+def test_incremental_import_blocked_when_model_changed():
+    from rag import vector_store as vsmod
+
+    svc = vsmod.VectorStoreService.__new__(vsmod.VectorStoreService)
+    svc.vector_store = object()
+    svc.last_failures = []
+    svc.last_warnings = []
+    svc.embedding_model_mismatch = lambda: ("old-model", "new-model")
+
+    try:
+        svc.load_document()
+        raise AssertionError("模型不一致时增量导入必须被拒绝")
+    except RuntimeError as e:
+        assert "全量重建" in str(e)
+
+
+def test_manifest_entry_removed_with_collection():
+    with tempfile.TemporaryDirectory() as tmp:
+        svc = _manifest_stub(tmp)
+        svc._write_manifest_entry("agent_v2", files=6, chunks=123)
+        svc._drop_manifest_entry("agent_v2")
+        assert svc.recorded_embedding_model("agent_v2") == ""
+
+
 # ------------------------------------------------------------ P1-3 预热幂等
 def test_start_preload_is_idempotent():
     original_run, original_started = warmup._run, warmup._started

@@ -1,10 +1,12 @@
 import os
 import re
+import json
 import threading
+from datetime import datetime
 from langchain_core.documents import Document
 from model.factory import embed_model
 from langchain_chroma import Chroma
-from utils.config_handler import chroma_conf
+from utils.config_handler import chroma_conf, rag_conf
 from utils.path_tool import get_abs_path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from utils.file_handler import pdf_loader, txt_loader, listdir_with_allowed_type, get_file_md5_hex
@@ -13,6 +15,7 @@ from rag.ranking import extract_key_terms, looks_like_scanned, merge_keyword_hit
 
 
 _ACTIVE_POINTER = "ACTIVE_COLLECTION"
+_INDEX_MANIFEST = "index_manifest.json"
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
 
 
@@ -31,6 +34,87 @@ class VectorStoreService:
             separators=chroma_conf["separators"],
             length_function=len,
         )
+
+        mismatch = self.embedding_model_mismatch()
+        if mismatch:
+            logger.warning(
+                f"[知识库] 索引指纹不一致：建库模型={mismatch[0]}，当前配置={mismatch[1]}。"
+                "检索结果不可信，请执行一次全量重建"
+            )
+
+    # ---------------------------------------------------------- 索引指纹
+    def _manifest_path(self) -> str:
+        return os.path.join(get_abs_path(chroma_conf["persist_directory"]), _INDEX_MANIFEST)
+
+    def _read_manifest(self) -> dict:
+        """读取索引指纹（记录每个集合由哪个嵌入模型构建）。损坏时视为空。"""
+        path = self._manifest_path()
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return data if isinstance(data, dict) else {}
+        except Exception as e:
+            logger.warning(f"[知识库] 索引指纹读取失败，视为未知: {e}")
+        return {}
+
+    def _write_manifest_entry(self, collection: str, files: int, chunks: int) -> None:
+        manifest = self._read_manifest()
+        collections = manifest.setdefault("collections", {})
+        collections[collection] = {
+            "embedding_model": rag_conf["embedding_model_name"],
+            "built_at": datetime.now().isoformat(timespec="seconds"),
+            "files": files,
+            "chunks": chunks,
+        }
+        path = self._manifest_path()
+        tmp = path + ".tmp"
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+
+    def _drop_manifest_entry(self, collection: str) -> None:
+        manifest = self._read_manifest()
+        collections = manifest.get("collections", {})
+        if collections.pop(collection, None) is None:
+            return
+        path = self._manifest_path()
+        tmp = path + ".tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(manifest, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, path)
+        except Exception as e:
+            logger.warning(f"[知识库] 清理索引指纹失败（可忽略）: {e}")
+
+    def recorded_embedding_model(self, collection: str | None = None) -> str:
+        """返回该集合建库时使用的嵌入模型；无记录返回空串。"""
+        name = collection or self.collection_name
+        entry = self._read_manifest().get("collections", {}).get(name, {})
+        return str(entry.get("embedding_model") or "")
+
+    def embedding_model_mismatch(self) -> tuple[str, str] | None:
+        """
+        判断「索引所用嵌入模型」与「当前配置」是否一致。
+        - 一致：返回 None
+        - 不一致：返回 (索引模型, 当前模型)
+        - 索引有数据但无指纹：返回 ("unknown", 当前模型)，提示需要重建
+
+        为什么必须校验：不同嵌入模型的向量维度可能相同（都是 1024），
+        维度校验发现不了问题，查询会照常执行却返回不相干内容——静默劣化最难排查。
+        """
+        current = str(rag_conf["embedding_model_name"])
+        recorded = self.recorded_embedding_model()
+        if recorded == current:
+            return None
+        if not recorded:
+            try:
+                has_data = self.vector_store._collection.count() > 0
+            except Exception:
+                has_data = False
+            return ("unknown", current) if has_data else None
+        return (recorded, current)
 
     # ---------------------------------------------------------- 集合管理
     def _pointer_path(self) -> str:
@@ -157,6 +241,16 @@ class VectorStoreService:
         self.last_failures = []
         self.last_warnings = []
 
+        # 增量导入前必须确认索引与当前嵌入模型同源：
+        # 否则新文档会以新模型的向量混入旧空间，索引从此不可用且不会报错。
+        if target is None:
+            mismatch = self.embedding_model_mismatch()
+            if mismatch:
+                raise RuntimeError(
+                    f"索引由 {mismatch[0]} 构建，当前配置为 {mismatch[1]}，"
+                    "增量导入会产生混合向量空间，请先执行全量重建"
+                )
+
         md5_store_path = get_abs_path(chroma_conf["md5_hex_store"])
 
         def get_file_documents(read_path: str):
@@ -222,6 +316,17 @@ class VectorStoreService:
                     self.last_failures.append(os.path.basename(path))
                     continue
 
+        if target is None and processed_count:
+            try:
+                entry = self._read_manifest().get("collections", {}).get(self.collection_name, {})
+                self._write_manifest_entry(
+                    self.collection_name,
+                    files=int(entry.get("files", 0)) + processed_count,
+                    chunks=self.vector_store._collection.count(),
+                )
+            except Exception as e:
+                logger.warning(f"[知识库] 写入索引指纹失败（不影响导入）: {e}")
+
         return processed_count
 
     def rebuild_knowledge_base(self) -> int:
@@ -260,10 +365,17 @@ class VectorStoreService:
             self.vector_store = staging
             self.collection_name = target_name
 
+            try:
+                chunk_count = staging._collection.count()
+            except Exception:
+                chunk_count = 0
+            self._write_manifest_entry(target_name, files=count, chunks=chunk_count)
+
             if os.path.exists(backup_path):
                 os.remove(backup_path)
 
             self._drop_collection(previous_name)
+            self._drop_manifest_entry(previous_name)
             logger.info(f"[重建知识库] 切换完成：{previous_name} → {target_name}，共 {count} 个文件")
             return count
         except Exception as e:

@@ -26,7 +26,7 @@
 | Web 界面 | Streamlit |
 | Agent 框架 | LangChain / LangGraph ReAct |
 | 大模型 | 通义千问 qwen3-max（DashScope） |
-| 向量检索 | ChromaDB + text-embedding-v4 |
+| 向量检索 | ChromaDB + qwen3.7-text-embedding-flash（1024 维） |
 | 天气数据（可选） | Open-Meteo（免密钥，`weather_provider: open-meteo` 时启用；默认关闭） |
 | 文档解析 | PyPDFLoader / TextLoader |
 
@@ -46,6 +46,27 @@ python -c "from rag.vector_store import VectorStoreService; VectorStoreService()
 # 4. 启动应用
 streamlit run app.py
 ```
+
+## 更换嵌入模型
+
+修改 `config/rag.yml` 的 `embedding_model_name` 后**必须全量重建**知识库：
+
+```bash
+# 管理页侧边栏「从 data 目录全量重建」，或命令行：
+python -c "from rag.vector_store import VectorStoreService; print(VectorStoreService().rebuild_knowledge_base())"
+```
+
+原因：不同模型的向量即使维度相同（都是 1024）也不在同一语义空间，
+检索不会报错，只会静默返回不相干内容。为此系统会在
+`chroma_db/index_manifest.json` 记录每个集合的建库模型：
+
+- 指纹与当前配置不一致 → 启动时告警、知识库页显式提示、**拒绝增量导入**；
+- 历史索引没有指纹 → 提示「请执行一次全量重建」；
+- 重建采用蓝绿切换，成功后自动更新指纹并丢弃旧集合。
+
+当前阈值 `score_threshold: 0.15` 的标定依据：12 条域内问题最高相似度分布为
+0.19~0.62（中位 0.47），5 条越界问题为 0.01~0.20，两者在 0.19/0.20 处交叠，
+单阈值无法同时兼顾。取 0.15 优先保证召回，越界问题由提示词约束与转人工兜底处理。
 
 ## 知识库评测
 
