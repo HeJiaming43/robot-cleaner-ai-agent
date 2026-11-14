@@ -15,7 +15,12 @@ class BaseModelFactory(ABC):
 
 class ChatModelFactory(BaseModelFactory):
     def generator(self) -> BaseChatModel:
-        return ChatTongyi(model = rag_conf["chat_model_name"], streaming=True)
+        # max_retries：底层 SDK 的失败重试次数，缓解网络抖动与限流瞬时错误（问题 P1-5）
+        return ChatTongyi(
+            model = rag_conf["chat_model_name"],
+            streaming = True,
+            max_retries = int(rag_conf.get("max_retries", 2)),
+        )
 
 
 class EmbeddingsFactory(BaseModelFactory):

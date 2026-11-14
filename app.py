@@ -7,22 +7,22 @@ Streamlit Web 服务，双页面：智能客服（用户端）+ 知识库管理�
 会把虚构位置讲给用户。城市信息现由用户在对话中自然语言提供。
 """
 import os
-import threading
+import time
 import uuid
 from datetime import datetime
 
 import streamlit as st
 
+from utils import warmup
 from utils.config_handler import chroma_conf
 from utils.auth import admin_configured, verify_admin_password
 from utils.content_guard import decode_for_scan, detect_injection
 from utils.errors import new_error_code, friendly_error_message, EMPTY_ANSWER_MESSAGE
 from utils.logger_handler import logger
 from utils.path_tool import get_abs_path
-
-
-_preload_done = threading.Event()
-_preloaded = {"vector_service": None, "agent": None}
+from utils.telemetry import new_request_id, record
+from utils.tickets import create_ticket
+from agent.escalation import assess
 
 
 # ============================================================
@@ -95,65 +95,24 @@ def inject_css():
 # ============================================================
 @st.cache_resource(show_spinner=False)
 def get_vector_service():
-    # 等待后台预热完成，避免与预热线程竞争创建重复实例
-    _preload_done.wait(timeout=95)
-    if _preloaded["vector_service"] is not None:
-        return _preloaded["vector_service"]
+    """
+    优先复用预热线程已建好的实例；预热未就绪则同步初始化。
+    不再阻塞等待预热完成——原先 95 秒的 wait 在跨 rerun 场景下会空等（问题 P1-3）。
+    """
+    service = warmup.preloaded_vector_service()
+    if service is not None:
+        return service
     from rag.vector_store import get_shared_vector_store
     return get_shared_vector_store()
 
 
 @st.cache_resource(show_spinner=False)
 def get_agent():
-    # 等待后台预热完成，避免与预热线程竞争创建重复实例
-    _preload_done.wait(timeout=95)
-    if _preloaded["agent"] is not None:
-        return _preloaded["agent"]
+    agent = warmup.preloaded_agent()
+    if agent is not None:
+        return agent
     from agent.react_agent import ReactAgent
     return ReactAgent()
-
-
-def _load_vector_service():
-    """后台线程专用：纯导入 + 初始化，不触碰 Streamlit API。"""
-    if _preloaded["vector_service"] is not None:
-        return
-    logger.info("[预热] 开始加载向量库服务")
-    from rag.vector_store import get_shared_vector_store
-    _preloaded["vector_service"] = get_shared_vector_store()
-    logger.info("[预热] 向量库服务加载完成")
-
-
-def _load_agent():
-    """后台线程专用：纯导入 + 初始化，不触碰 Streamlit API。"""
-    if _preloaded["agent"] is not None:
-        return
-    logger.info("[预热] 开始加载智能客服引擎")
-    from agent.react_agent import ReactAgent
-    _preloaded["agent"] = ReactAgent()
-    logger.info("[预热] 智能客服引擎加载完成")
-
-
-def _preload_heavy_services():
-    """
-    后台预热重量级服务（Agent 引擎 + 向量库），
-    让首次页面渲染不被 15~20 秒的依赖导入阻塞。
-    预热结果写入模块级 _preloaded，缓存函数优先取用。
-    """
-    threads = [
-        threading.Thread(target=_load_vector_service, daemon=True),
-        threading.Thread(target=_load_agent, daemon=True),
-    ]
-    try:
-        # 两个重依赖并行导入；join 设置上限，避免异常环境导致永久阻塞
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join(timeout=90)
-    except Exception as e:
-        logger.error(f"[预热] 后台初始化失败: {e}", exc_info=True)
-    finally:
-        logger.info("[预热] 后台初始化流程结束")
-        _preload_done.set()
 
 
 # ============================================================
@@ -164,6 +123,7 @@ def init_session_state():
         "messages": [],            # [{"role", "content", "timestamp", "question"}]
         "pending_question": "",
         "kg_authed": False,        # 知识库管理鉴权状态
+        "feedback": {},            # 每条回答的赞踩记录，避免重复埋点
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -305,6 +265,44 @@ def page_customer_service():
                     key=f"dl_{index}",
                 )
 
+                # ---- 分层兜底出口（问题 P2-3）----
+                if msg.get("needs_human"):
+                    st.info(f"该问题建议人工跟进 · 原因：{msg.get('escalate_reason')}")
+                    if msg.get("ticket"):
+                        st.success(f"已创建工单 {msg['ticket']}，人工客服会尽快联系您")
+                    elif st.button("转接人工客服", key=f"esc_{index}"):
+                        ticket = create_ticket(
+                            st.session_state.session_id,
+                            msg.get("question", ""),
+                            msg.get("content", ""),
+                            msg.get("escalate_reason", ""),
+                        )
+                        msg["ticket"] = ticket
+                        record(
+                            "ticket_created",
+                            session=st.session_state.session_id,
+                            request_id=msg.get("request_id"),
+                            ticket=ticket,
+                            reason=msg.get("escalate_reason"),
+                        )
+                        st.rerun()
+
+                # ---- 反馈闭环（问题 P2-4）----
+                fb_key = f"fb_{index}"
+                previous = st.session_state.feedback.get(fb_key)
+                rating = st.feedback("thumbs", key=fb_key)
+                if rating is not None and rating != previous:
+                    st.session_state.feedback[fb_key] = rating
+                    record(
+                        "feedback",
+                        session=st.session_state.session_id,
+                        request_id=msg.get("request_id"),
+                        question=question,
+                        rating=int(rating),
+                    )
+                    if int(rating) == 0:
+                        st.caption("已记录，我们会据此补充知识库")
+
     # ---- 输入区 ----
     question = st.chat_input("请输入您关于扫地/拖地机器人的问题…")
     if not question and st.session_state.get("pending_question"):
@@ -337,6 +335,10 @@ def page_customer_service():
                         stream_started = True
                     yield delta
 
+            request_id = new_request_id()      # 链路 ID：贯穿检索、生成、反馈与工单
+            turn_started = time.perf_counter()
+            had_error = False
+
             try:
                 # 已把当前问题追加进 messages，故上下文取其之前的部分
                 history = st.session_state.messages[:-1]
@@ -345,6 +347,7 @@ def page_customer_service():
                         question,
                         history=history,
                         session_id=st.session_state.session_id,
+                        request_id=request_id,
                     ))
                 ).strip()
                 if not answer:
@@ -354,10 +357,24 @@ def page_customer_service():
             except Exception as e:
                 # 技术细节只进日志，用户侧仅给错误码（问题 P0-6）
                 thinking.empty()
+                had_error = True
                 error_code = new_error_code()
                 logger.error(f"[对话失败] 错误码 {error_code}: {e}", exc_info=True)
                 answer = friendly_error_message(error_code)
                 st.warning(answer)
+
+            # 分层兜底判定：异常 / 空回答 / 知识库未覆盖 / 用户主动要求人工
+            decision = assess(answer, question, had_error=had_error)
+            record(
+                "turn_answer",
+                request_id=request_id,
+                session=st.session_state.session_id,
+                question=question,
+                chars=len(answer),
+                elapsed_ms=int((time.perf_counter() - turn_started) * 1000),
+                escalated=decision.should_escalate,
+                reason=decision.reason,
+            )
 
             ans_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             st.session_state.messages.append({
@@ -365,6 +382,9 @@ def page_customer_service():
                 "content": answer,
                 "timestamp": ans_ts,
                 "question": question,
+                "request_id": request_id,
+                "needs_human": decision.should_escalate,
+                "escalate_reason": decision.reason,
             })
 
         # 刷新页面，让侧边栏消息计数与历史循环同步
@@ -377,7 +397,7 @@ def page_customer_service():
 @st.fragment(run_every=3)
 def render_kb_status():
     """知识库状态卡片：引擎未就绪时先显示预热状态，就绪后自动刷新片段总数。"""
-    if not _preload_done.is_set():
+    if not warmup.is_ready():
         st.metric("向量片段总数", "预热中…")
         st.caption("后台引擎加载中，预计几秒后自动刷新…")
         return
@@ -501,20 +521,50 @@ def page_knowledge_management():
                     data_dir = get_abs_path(chroma_conf["data_path"])
                     os.makedirs(data_dir, exist_ok=True)
 
+                    # 原子落盘 + 失败回滚（问题 P1-4）：
+                    # 先写临时文件再 replace，避免半截文件被后续扫描当成正式文档；
+                    # 任一步失败则删除本批已写入的文件，不留「有文件无索引」的不一致状态。
+                    written_paths = []
                     progress = st.progress(0)
-                    for idx, file in enumerate(valid_files):
-                        # 清洗文件名，防止路径穿越（如 ../etc/passwd）
-                        safe_name = os.path.basename(file.name)
-                        with open(os.path.join(data_dir, safe_name), "wb") as f:
-                            f.write(file.getbuffer())
-                        progress.progress((idx + 1) / len(valid_files))
+                    try:
+                        for idx, file in enumerate(valid_files):
+                            # 清洗文件名，防止路径穿越（如 ../etc/passwd）
+                            safe_name = os.path.basename(file.name)
+                            final_path = os.path.join(data_dir, safe_name)
+                            tmp_path = final_path + ".uploading"
+                            with open(tmp_path, "wb") as f:
+                                f.write(file.getbuffer())
+                            os.replace(tmp_path, final_path)
+                            written_paths.append(final_path)
+                            progress.progress((idx + 1) / len(valid_files))
 
-                    with st.spinner("正在分割、去重并写入向量知识库…"):
-                        vector_service = get_vector_service()
-                        processed = vector_service.load_document()
+                        with st.spinner("正在分割、去重并写入向量知识库…"):
+                            vector_service = get_vector_service()
+                            processed = vector_service.load_document()
 
-                    st.success(f"✅ 导入完成，本次新增入库 {processed} 个文件")
-                    st.rerun()
+                        for message in vector_service.last_warnings:
+                            st.warning(f"⚠️ {message}")
+                        if vector_service.last_failures:
+                            st.warning("以下文件未能入库：" + "、".join(vector_service.last_failures))
+
+                        st.success(f"✅ 导入完成，本次新增入库 {processed} 个文件")
+                        record(
+                            "kb_import",
+                            session=st.session_state.session_id,
+                            files=len(valid_files),
+                            indexed=processed,
+                            failed=len(vector_service.last_failures),
+                        )
+                        st.rerun()
+                    except Exception as e:
+                        for path in written_paths:
+                            try:
+                                os.remove(path)
+                            except OSError:
+                                pass
+                        error_code = new_error_code()
+                        logger.error(f"[知识库导入] 失败 {error_code}: {e}", exc_info=True)
+                        st.error(friendly_error_message(error_code))
 
     # ---- 右栏：已入库文件 ----
     with col_right:
@@ -550,11 +600,10 @@ def main():
     inject_css()
     init_session_state()
 
-    # 后台预热重量级服务（Agent 引擎 + 向量库），
-    # 让首屏渲染不被 15~20 秒的依赖导入阻塞
-    if not st.session_state.get("_preload_started"):
-        st.session_state._preload_started = True
-        threading.Thread(target=_preload_heavy_services, daemon=True).start()
+    # 后台预热重量级服务（Agent 引擎 + 向量库），让首屏渲染不被依赖导入阻塞。
+    # 幂等性由 utils.warmup 的模块级状态保证，不再依赖 session_state（问题 P1-3）
+    if warmup.start_preload():
+        logger.info("[预热] 已触发后台初始化")
 
     # 首次加载不再做位置探测：原逻辑需阻塞等待最长 10 秒并额外触发一次全页 rerun
     # ---- 侧边导航 ----

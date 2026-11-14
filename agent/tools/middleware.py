@@ -7,6 +7,7 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 from utils.logger_handler import logger
+from utils.privacy import brief
 
 
 @wrap_tool_call
@@ -17,7 +18,7 @@ def monitor_tool(
     tool_name = request.tool_call["name"]
     tool_args = request.tool_call["args"]
     logger.info(f'[tool monitor]执行工具: {tool_name}')
-    logger.info(f'[tool monitor]传入参数: {tool_args}')
+    logger.info(f'[tool monitor]传入参数: {brief(str(tool_args), 120)}')
 
     try:
         result = handler(request)
@@ -51,7 +52,7 @@ def log_before_model(
     msg_count = len(state["messages"])
     logger.info(f'[log_before_model]即将调用模型，带有{msg_count}条消息')
     last_msg = state["messages"][-1]
-    logger.debug(f'[log_before_model]{type(last_msg).__name__} | {last_msg.content.strip()}')
+    logger.debug(f'[log_before_model]{type(last_msg).__name__} | {brief(str(last_msg.content))}')
 
     return None
 

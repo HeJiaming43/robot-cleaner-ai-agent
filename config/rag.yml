@@ -1,2 +1,9 @@
+# 注意：chat_model_name 必须与账号实际可用的模型一致，
+# 否则接口返回 404 Model not exist（当前环境实测 qwen3-max 不可用，需按账号改为 qwen-plus 等）
 chat_model_name: qwen3-max
 embedding_model_name: text-embedding-v4
+
+# 模型调用失败重试次数（SDK 层）
+max_retries: 2
+# 流式输出期间允许的最大静默秒数，超时判定为模型无响应并给出可读错误
+stall_timeout: 45

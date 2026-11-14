@@ -13,7 +13,6 @@ class RagSummarizeService(object):
     def __init__(self, vector_store: VectorStoreService | None = None):
         # 允许注入共享的 VectorStoreService，避免重复实例化
         self.vector_store = vector_store or VectorStoreService()
-        self.retriever = self.vector_store.get_retriever()
         self.prompt_text = load_rag_prompts()
         self.prompt_template = PromptTemplate.from_template(self.prompt_text)
         self.model = chat_model
@@ -24,8 +23,17 @@ class RagSummarizeService(object):
         chain = self.prompt_template | self.model | StrOutputParser()
         return chain
 
+    @property
+    def retriever(self):
+        """
+        每次访问现取，不缓存实例。
+        原实现在构造期缓存 retriever，知识库蓝绿切换后仍指向旧集合，
+        会持续检索已下线的内容（对应问题 P1-1）。
+        """
+        return self.vector_store.get_retriever()
+
     def retrieve_docs(self, query: str) -> list[Document]:
-        return self.retriever.invoke(query)
+        return self.vector_store.get_retriever().invoke(query)
 
     def rag_summarize(self, query: str) -> str:
 

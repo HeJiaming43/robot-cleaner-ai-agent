@@ -1,9 +1,14 @@
 collection_name: agent
 persist_directory: chroma_db
-k: 3
+k: 5
 # 检索可信度阈值：低于此值会在资料前标注「检索可信度低」，提示模型不得编造
 # 注意：该值需用独立评测集校准；当前偏保守，优先避免误判导致正常问题被拒答
 score_threshold: 0.15
+# 关键词通道：对 E13、X20 这类错误码/型号做精确包含匹配补召回
+keyword_boost: true
+# 词法重排：仅改变候选顺序，不改变原始相关度（阈值判定语义不变）
+rerank: true
+rerank_alpha: 0.7
 data_path: data
 md5_hex_store: md5.txt
 allow_knowledge_file_type: ['txt','pdf']
