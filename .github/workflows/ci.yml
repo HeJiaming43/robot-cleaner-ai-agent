@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      - name: 语法编译检查
+        run: python -m compileall -q app.py agent rag model utils eval scripts tests
+
+      - name: P0 行为契约
+        env:
+          # 仅用于构造模型客户端，测试全程不发起真实请求
+          DASHSCOPE_API_KEY: ci-dummy-key
+        run: python tests/test_p0_acceptance.py
+
+      - name: P1/P2 行为契约
+        env:
+          DASHSCOPE_API_KEY: ci-dummy-key
+        run: python tests/test_p1p2_acceptance.py
+
+      - name: 健康检查脚本自检
+        env:
+          DASHSCOPE_API_KEY: ci-dummy-key
+        run: python scripts/healthcheck.py

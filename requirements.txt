@@ -1,0 +1,18 @@
+# 智净灵境 · 智能客服运行依赖
+# Python >= 3.12（app.py 使用了 PEP 701 的 f-string 语法）
+# 版本与 2026-11 当前验证环境一致，升级前请在测试集上回归
+
+langchain==1.2.10
+langchain-core==1.6.4
+langchain-community==0.4.1
+langchain-chroma==1.1.0
+langchain-text-splitters==1.1.0
+streamlit==1.59.1
+
+dashscope==1.25.12
+PyYAML==6.0.3
+pypdf==6.14.2
+requests==2.32.5
+
+# 注：requests 仅在 weather_provider=open-meteo 时被延迟导入；
+# 默认 weather_provider=none 的部署不发起任何外部天气请求

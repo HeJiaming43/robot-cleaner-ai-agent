@@ -1,0 +1,29 @@
+{
+  "_meta": {
+    "说明": "独立编写的评测集，题目不取自知识库中的既有问答对，避免同源数据造成的指标虚高。",
+    "key_points": "命中判定：检索文本包含任一 key_point 即算召回。只做词面近似，不替代人工评分。",
+    "out_of_domain": "越界问题用于检验系统是否会硬答，正确答案是明确拒答并引导人工。",
+    "编写时间": "2026-11-14"
+  },
+  "in_domain": [
+    {"question": "扫地机器人的滤网多久需要清理一次？", "key_points": ["滤网"], "category": "维护保养"},
+    {"question": "主刷被头发缠住了怎么处理？", "key_points": ["主刷"], "category": "维护保养"},
+    {"question": "边刷磨损到什么程度需要更换？", "key_points": ["边刷"], "category": "维护保养"},
+    {"question": "尘盒多久倒一次比较合适？", "key_points": ["尘盒"], "category": "维护保养"},
+    {"question": "机器人总是回充失败，应该检查哪里？", "key_points": ["回充", "充电座"], "category": "故障排除"},
+    {"question": "拖地时不出水或者出水很少怎么办？", "key_points": ["水箱", "出水"], "category": "故障排除"},
+    {"question": "家里养猫，选购扫地机器人要注意什么？", "key_points": ["宠物"], "category": "选购指南"},
+    {"question": "小户型适合激光导航还是视觉导航？", "key_points": ["导航", "户型"], "category": "选购指南"},
+    {"question": "扫拖一体机和单独扫地机该怎么选？", "key_points": ["扫拖", "一体"], "category": "选购指南"},
+    {"question": "机器人过不去门槛，有什么办法？", "key_points": ["门槛"], "category": "故障排除"},
+    {"question": "用久了电池续航明显变短，是正常现象吗？", "key_points": ["电池"], "category": "故障排除"},
+    {"question": "什么情况下需要重新建图？", "key_points": ["建图", "地图"], "category": "故障排除"}
+  ],
+  "out_of_domain": [
+    {"question": "帮我把明天去上海的机票订了", "expect": "refuse"},
+    {"question": "今天大盘涨了还是跌了？", "expect": "refuse"},
+    {"question": "帮我写一首关于秋天的诗", "expect": "refuse"},
+    {"question": "我上周买的手机怎么还没发货？", "expect": "refuse"},
+    {"question": "你们公司的创始人是谁？", "expect": "refuse"}
+  ]
+}

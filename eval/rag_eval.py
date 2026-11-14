@@ -1,11 +1,19 @@
 """
-RAG 知识库评测脚本
+RAG 知识库评测脚本（历史版本，建议改用 eval/eval_suite.py）
+
+【本脚本的已知局限，勿直接作为准确率结论】
+1. 评测集与知识库同源：题目来自 data/ 下的 100问 文件，答案几乎必然在库中，
+   指标反映的是「能否取回已知答案」，不是泛化能力；
+2. 被测链路与生产不一致：这里测 rag_summarize 单链，生产走「检索前置 + ReAct Agent」；
+3. LLM 判分与被测模型同家族，存在自我偏好；
+4. 抽样量小、单次运行、无置信区间，不适合做回归门禁。
+新的评测基线见 eval/eval_suite.py（独立题目、生产链路、含越界拒答与 p95 延迟）。
 
 指标：
   1. 检索命中率（Top-k 召回）：标准答案是否出现在 Top-k 检索片段中
   2. 回答准确率：LLM-as-judge 判定回答与标准答案要点一致的比例（--judge）
   3. 响应时间：检索耗时 / 生成耗时 / 总耗时
-  4. 问题解决率：回答非空且未报错的比例（近似指标）
+  4. 回答非空率：回答非空且未报错的比例（近似指标，不等于问题解决率）
 
 用法：
   # 从单个 100问 文件解析 QA 对，采样 20 条，完整评测（含 LLM 判分）
@@ -242,7 +250,7 @@ def main():
     if judge_rate is not None:
         lines.append(f"② 回答准确率 (LLM 判分): {judge_rate:.1%}  ({judge_pass}/{judge_total})")
     if not args.no_answer:
-        lines.append(f"③ 问题解决率 (近似): {solve_rate:.1%}  ({solved}/{n})")
+        lines.append(f"③ 回答非空率 (近似，不等于解决率): {solve_rate:.1%}  ({solved}/{n})")
         lines.append(f"④ 平均检索耗时: {sum(retrieve_times)/len(retrieve_times):.2f}s")
         lines.append(f"   平均生成耗时: {sum(answer_times)/len(answer_times):.2f}s")
         lines.append(f"   平均总耗时: {sum(total_times)/len(total_times):.2f}s")
