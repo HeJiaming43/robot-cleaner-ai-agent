@@ -10,7 +10,9 @@ venv/
 chroma_db/
 logs/
 md5.txt
+md5.txt.bak
 *.log
+data/tickets/
 
 # 评测输出（脚本保留，运行结果忽略）
 eval/results/
