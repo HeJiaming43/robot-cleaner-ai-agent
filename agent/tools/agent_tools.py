@@ -1,13 +1,14 @@
 import os
 import csv
 import json
-import functools
+import re
+import threading
 from datetime import datetime
 from utils.logger_handler import logger
 from langchain_core.tools import tool
-import random
 from utils.config_handler import agent_conf
 from utils.path_tool import get_abs_path
+from agent.identity import current_user_id, IdentityNotSetError
 
 
 _rag = None
@@ -27,10 +28,9 @@ def _get_rag():
         _rag = RagSummarizeService(vector_store=get_shared_vector_store())
     return _rag
 
-user_ids = ["1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", "1010"]
-_session_user_id = None  # 单次会话内保持一致的用户ID
 
-external_data = {}
+external_data: dict[str, dict] = {}
+_external_data_lock = threading.Lock()
 
 
 @tool(description="从向量知识库检索与用户问题相关的参考资料原文，返回带[参考资料N]标记的文本，最终回答必须基于这些资料生成")
@@ -51,6 +51,7 @@ def rag_summarize(query: str) -> str:
             f"[参考资料{idx}] {doc.page_content} | 元数据: {doc.metadata}"
         )
     return "\n".join(context_lines)
+
 
 _GEO_URL = "https://geocoding-api.open-meteo.com/v1/search"
 _FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -136,12 +137,15 @@ def get_weather(city: str) -> str:
         logger.warning(f"[get_weather] 天气数据源异常（provider={provider}）: {e}")
         return _weather_unavailable(city)
 
-@tool(description="获取用户的ID，以纯字符串形式返回")
+
+@tool(description="获取当前会话的用户ID。身份由系统按会话注入，不接受外部指定，返回纯字符串")
 def get_user_id() -> str:
-    global _session_user_id
-    if _session_user_id is None:
-        _session_user_id = random.choice(user_ids)
-    return _session_user_id
+    try:
+        return current_user_id()
+    except IdentityNotSetError:
+        logger.error("[get_user_id] 当前上下文缺少会话身份")
+        return ""
+
 
 @tool(description="获取当前月份，以纯字符串形式返回")
 def get_current_month() -> str:
@@ -149,12 +153,21 @@ def get_current_month() -> str:
 
 
 def generate_external_data():
-    if not external_data:
+    global external_data
+
+    if external_data:
+        return
+
+    with _external_data_lock:
+        if external_data:
+            return
+
         external_data_path = get_abs_path(agent_conf['external_data_path'])
 
         if not os.path.exists(external_data_path):
             raise FileNotFoundError(f'外部数据文件{external_data_path}不存在')
 
+        loaded: dict[str, dict] = {}
         with open(external_data_path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             next(reader, None)  # 跳过表头行
@@ -174,35 +187,95 @@ def generate_external_data():
                     logger.warning(f'[generate_external_data] 第{row_num}行user_id为空，已跳过')
                     continue
 
-                if user_id not in external_data:
-                    external_data[user_id] = {}
-
-                external_data[user_id][time] = {
+                loaded.setdefault(user_id, {})[time] = {
                     'feature': feature,
                     'efficiency': efficiency,
                     'consumables': consumables,
                     'comparison': comparison,
                 }
 
-@tool(description="从外部系统中获取指定用户在指定月份的使用记录，以纯字符串形式返回， 如果未检索到返回空字符串")
-def fetch_external_data(user_id: str, month: str) -> str:
-    generate_external_data()
+        external_data = loaded
+
+
+_MONTH_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+@tool(
+    description=(
+        "获取当前用户在指定月份的使用记录。month 必须为 YYYY-MM 格式。"
+        "用户身份由系统按会话自动注入，你无需也无法指定 user_id，不存在查询他人数据的入口"
+    )
+)
+def fetch_external_data(month: str) -> str:
+    """
+    只按「当前会话用户 + 指定月份」取数。
+    原实现把 user_id 作为模型可自由填写的参数，模型可以取任意用户的数据；
+    现在身份从上下文读取，参数面收窄为 month 一项。
+
+    返回结构化 JSON：正常命中 is_fallback=false；命中兜底月份时 is_fallback=true
+    并附 fallback_month 与说明，要求模型向用户如实说明数据月份。
+    """
+    try:
+        user_id = current_user_id()
+    except IdentityNotSetError:
+        logger.error("[fetch_external_data] 缺少会话身份，拒绝查询")
+        return json.dumps(
+            {"error": "身份未绑定", "note": "无法确认当前用户身份，请提示用户重新开启会话后再试"},
+            ensure_ascii=False,
+        )
+
+    month = (month or "").strip()
+    if not _MONTH_PATTERN.match(month):
+        logger.warning(f"[fetch_external_data] 月份格式不合法: {month!r}")
+        return json.dumps(
+            {"error": "月份格式不合法", "expected": "YYYY-MM", "received": month},
+            ensure_ascii=False,
+        )
 
     try:
-        return json.dumps(external_data[user_id][month], ensure_ascii=False)
-    except KeyError:
-        logger.warning(f'[fetch_external_data]未能检索到用户：{user_id}在{month}的使用记录数据')
+        generate_external_data()
+    except Exception as e:
+        logger.error(f"[fetch_external_data] 加载外部数据失败: {e}", exc_info=True)
+        return json.dumps(
+            {"error": "数据源不可用", "note": "使用记录暂时无法查询，请告知用户稍后再试或转人工"},
+            ensure_ascii=False,
+        )
 
-        # 数据兜底：外部数据只有历史月份时，返回该用户最近一个可查月份的数据
-        user_records = external_data.get(user_id, {})
-        if user_records:
-            latest_month = max(user_records.keys())
-            logger.info(f'[fetch_external_data]数据兜底：{user_id}最近可查月份为{latest_month}')
-            return (
-                f'未找到{user_id}在{month}的使用记录，'
-                f'已返回最近可查月份{latest_month}的数据：\n{user_records[latest_month]}'
-            )
-        return ''
+    user_records = external_data.get(user_id, {})
+    record = user_records.get(month)
+    if record:
+        return json.dumps(
+            {"user_id": user_id, "month": month, "record": record, "is_fallback": False},
+            ensure_ascii=False,
+        )
+
+    if not user_records:
+        logger.info(f"[fetch_external_data] 用户 {user_id} 无任何可查记录")
+        return json.dumps(
+            {
+                "user_id": user_id,
+                "month": month,
+                "record": None,
+                "is_fallback": False,
+                "note": "该用户没有可查询的使用记录，请如实告知用户，不得编造数据",
+            },
+            ensure_ascii=False,
+        )
+
+    latest_month = max(user_records.keys())
+    logger.info(f"[fetch_external_data] 数据兜底：{user_id} 最近可查月份为 {latest_month}")
+    return json.dumps(
+        {
+            "user_id": user_id,
+            "month": month,
+            "record": user_records[latest_month],
+            "is_fallback": True,
+            "fallback_month": latest_month,
+            "note": f"未查询到 {month} 的记录，以下为最近可查月份 {latest_month} 的数据；回答时必须向用户明确说明这一点",
+        },
+        ensure_ascii=False,
+    )
+
 
 @tool(description="无入参，调用后触发中间件拦截，自动为报告生成场景切换提示词。返回值无实际意义，仅用于触发中间件")
 def fill_context_for_report():

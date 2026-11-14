@@ -149,6 +149,96 @@ def test_execute_stream_injects_retrieval_without_model_call():
     assert "每周清理一次滤网" in messages[1]["content"]
 
 
+# ------------------------------------------------------- P0-3 身份与会话隔离
+def test_identity_is_stable_within_session():
+    from agent.identity import resolve_session_user_id
+    first = resolve_session_user_id("abc123")
+    assert first == resolve_session_user_id("abc123")
+    assert first in {str(1001 + i) for i in range(10)}
+
+
+def test_identity_not_shared_across_sessions():
+    from agent.identity import resolve_session_user_id
+    ids = {resolve_session_user_id(f"session-{i}") for i in range(40)}
+    assert len(ids) > 1, ids
+
+
+def test_identity_scope_isolated_and_restored():
+    from agent import identity
+
+    assert identity.current_identity() is None
+    with identity.session_scope("s1") as ident:
+        assert ident.user_id == identity.current_user_id()
+    assert identity.current_identity() is None, "退出上下文后必须恢复，防止跨请求泄漏"
+
+    try:
+        identity.current_user_id()
+        raise AssertionError("未绑定身份时应抛出 IdentityNotSetError")
+    except identity.IdentityNotSetError:
+        pass
+
+
+def test_no_random_global_user_id_left():
+    import agent.tools.agent_tools as at
+    assert not hasattr(at, "user_ids"), "不应残留全局用户列表"
+    assert not hasattr(at, "_session_user_id"), "不应残留进程级共享身份"
+    assert not hasattr(at, "random"), "不应再依赖随机分配身份"
+
+
+def test_fetch_external_data_refuses_without_identity():
+    import json
+    from agent.tools.agent_tools import fetch_external_data
+
+    payload = json.loads(fetch_external_data.invoke({"month": "2025-06"}))
+    assert payload["error"] == "身份未绑定"
+
+
+def test_fetch_external_data_scoped_to_current_user():
+    import json
+    from agent.identity import session_scope, resolve_session_user_id
+    from agent.tools.agent_tools import fetch_external_data
+
+    session_id = "unit-test-session"
+    expected_user = resolve_session_user_id(session_id)
+
+    with session_scope(session_id):
+        payload = json.loads(fetch_external_data.invoke({"month": "2025-06"}))
+
+    assert payload["user_id"] == expected_user, payload
+    assert payload["is_fallback"] is False
+    assert payload["record"]["feature"], payload
+
+
+def test_fetch_external_data_rejects_bad_month():
+    import json
+    from agent.identity import session_scope
+    from agent.tools.agent_tools import fetch_external_data
+
+    with session_scope("unit-test-session"):
+        payload = json.loads(fetch_external_data.invoke({"month": "2025/06"}))
+
+    assert payload["error"] == "月份格式不合法"
+    assert payload["expected"] == "YYYY-MM"
+
+
+def test_fetch_external_data_flags_fallback_month():
+    import json
+    from agent.identity import session_scope
+    from agent.tools.agent_tools import fetch_external_data
+
+    with session_scope("unit-test-session"):
+        payload = json.loads(fetch_external_data.invoke({"month": "2026-11"}))
+
+    assert payload["is_fallback"] is True, payload
+    assert payload["fallback_month"] == "2025-12"
+    assert "必须向用户明确说明" in payload["note"]
+
+
+def test_tool_signature_cannot_target_other_user():
+    from agent.tools.agent_tools import fetch_external_data
+    assert "user_id" not in fetch_external_data.args, "取数工具不得暴露 user_id 参数"
+
+
 if __name__ == "__main__":
     passed = failed = 0
     for name, fn in sorted(globals().items()):

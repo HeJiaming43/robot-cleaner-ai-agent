@@ -338,7 +338,11 @@ def page_customer_service():
                 # 已把当前问题追加进 messages，故上下文取其之前的部分
                 history = st.session_state.messages[:-1]
                 answer = st.write_stream(
-                    collect(get_agent().execute_stream(question, history=history))
+                    collect(get_agent().execute_stream(
+                        question,
+                        history=history,
+                        session_id=st.session_state.session_id,
+                    ))
                 ).strip()
                 if not answer:
                     thinking.empty()

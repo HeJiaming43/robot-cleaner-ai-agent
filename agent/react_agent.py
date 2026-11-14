@@ -3,6 +3,7 @@ from model.factory import chat_model
 from utils.prompt_loader import load_system_prompts
 from utils.logger_handler import logger
 from rag.retrieval_gate import get_retrieval_gate, format_grounding_block
+from agent.identity import session_scope
 from agent.tools.agent_tools import (rag_summarize,get_weather,get_user_id,
                                      get_current_month,fetch_external_data,fill_context_for_report)
 from agent.tools.middleware import monitor_tool,log_before_model,report_prompt_switch
@@ -83,7 +84,7 @@ class ReactAgent:
         )
 
 
-    def execute_stream(self, query: str, history: list | None = None):
+    def execute_stream(self, query: str, history: list | None = None, session_id: str | None = None):
         """
         按增量流式输出模型的回答（stream_mode='messages'）。
         每个 chunk 都是新生成的文本增量，前端可直接逐字渲染；
@@ -91,6 +92,8 @@ class ReactAgent:
 
         history：此前轮次的消息（[{"role","content"}, ...]），用于多轮指代解析。
         调用方须传入「不含当前问题」的历史，当前问题通过 query 单独提交。
+        session_id：会话标识。工具据此解析当前用户身份，
+                    模型无法通过参数访问其他用户的数据。
         """
         messages = _build_history(history)
 
@@ -103,35 +106,37 @@ class ReactAgent:
 
         input_dict = {'messages': messages}
 
-        # context 是上下文 runtime 中的信息，做提示词切换的标记
-        for message_chunk, _metadata in self.agent.stream(
-            input_dict,
-            stream_mode = 'messages',
-            context = {'report': False},
-        ):
-            # 只取模型生成的文本增量，跳过工具调用与工具返回消息
-            if getattr(message_chunk, 'type', '') != 'AIMessageChunk':
-                continue
+        # 绑定会话身份：工具内通过 ContextVar 读取，退出即恢复，不跨请求泄漏
+        with session_scope(session_id or "anonymous"):
+            # context 是上下文 runtime 中的信息，做提示词切换的标记
+            for message_chunk, _metadata in self.agent.stream(
+                input_dict,
+                stream_mode = 'messages',
+                context = {'report': False},
+            ):
+                # 只取模型生成的文本增量，跳过工具调用与工具返回消息
+                if getattr(message_chunk, 'type', '') != 'AIMessageChunk':
+                    continue
 
-            content = message_chunk.content
-            if not content:
-                continue
+                content = message_chunk.content
+                if not content:
+                    continue
 
-            if not isinstance(content, str):
-                # 兼容 content blocks 场景，仅拼接文本块
-                parts = []
-                for block in content:
-                    if isinstance(block, dict) and block.get('type') == 'text':
-                        parts.append(block.get('text', ''))
-                    elif isinstance(block, str):
-                        parts.append(block)
-                content = ''.join(parts)
+                if not isinstance(content, str):
+                    # 兼容 content blocks 场景，仅拼接文本块
+                    parts = []
+                    for block in content:
+                        if isinstance(block, dict) and block.get('type') == 'text':
+                            parts.append(block.get('text', ''))
+                        elif isinstance(block, str):
+                            parts.append(block)
+                    content = ''.join(parts)
 
-            if content:
-                yield content
+                if content:
+                    yield content
 
 if __name__ == '__main__':
     agent = ReactAgent()
 
-    for chunk in agent.execute_stream('扫地机器人日常如何保养'):
+    for chunk in agent.execute_stream('扫地机器人日常如何保养', session_id='cli-demo'):
         print(chunk, end='', flush=True)
