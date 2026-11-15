@@ -63,18 +63,19 @@ def inject_css():
     .location-badge {
         text-align: center;
         padding: 0.7rem 1rem;
-        background: rgba(102, 126, 234, 0.12);
+        background: rgba(102, 126, 234, 0.10);
         border: 1px solid rgba(102, 126, 234, 0.35);
         border-left: 4px solid #667eea;
         border-radius: 10px;
         margin: 0.8rem 0 1.2rem 0;
         font-size: 1rem;
-        color: #e8e8f0;
+        /* 原 #e8e8f0 是深色主题配色，浅色底下对比度约 1.05:1，几乎不可见 */
+        color: #1f2937;
     }
     .footer {
         text-align: center;
         padding: 1.2rem;
-        color: #aaa;
+        color: #6b7480;
         font-size: 0.82rem;
         margin-top: 2rem;
     }
@@ -215,6 +216,11 @@ def render_session_sidebar():
     msg_count = len(st.session_state.messages)
     st.caption(f"当前会话共 {msg_count} 条消息")
 
+    # 会话编号放在管理侧栏而非欢迎语：对用户是"转人工时提供给客服"的凭证，
+    # 对系统是埋点、工单与用户数据归属的关联键
+    st.caption(f"会话编号 `{st.session_state.session_id}`")
+    st.caption("转人工时提供该编号，客服可据此定位本次对话")
+
     col_clear, col_export = st.columns(2)
     with col_clear:
         if st.button("🗑️ 清空对话", use_container_width=True):
@@ -256,9 +262,9 @@ def page_customer_service():
     """, unsafe_allow_html=True)
 
     # ---- 欢迎语（城市信息由用户在对话中提供，不再做 IP 自动定位） ----
-    st.markdown(f"""
+    st.markdown("""
     <div class="location-badge">
-        🌐 欢迎您咨询智净灵境扫地 / 拖地机器人智能客服 · 会话 {st.session_state.session_id}
+        🌐 欢迎咨询智净灵境扫地 / 拖地机器人智能客服，请问有什么可以帮您？
     </div>
     """, unsafe_allow_html=True)
 
