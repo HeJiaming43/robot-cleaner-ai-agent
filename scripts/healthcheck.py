@@ -58,9 +58,18 @@ def check_api_key() -> tuple[bool, str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="容器健康检查")
     parser.add_argument("--require-key", action="store_true", help="额外校验 API Key")
+    parser.add_argument(
+        "--allow-empty-kb",
+        action="store_true",
+        help="允许缺失向量库（CI 环境无 chroma_db，容器运行时不应用此参数）",
+    )
     args = parser.parse_args()
 
-    checks = [("config", check_configs), ("data", check_data_dir), ("chroma", check_knowledge_base)]
+    checks = [("config", check_configs), ("data", check_data_dir)]
+    if args.allow_empty_kb:
+        print("[SKIP] chroma: 已指定 --allow-empty-kb，跳过向量库校验")
+    else:
+        checks.append(("chroma", check_knowledge_base))
     if args.require_key:
         checks.append(("api_key", check_api_key))
 

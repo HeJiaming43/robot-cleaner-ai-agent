@@ -36,4 +36,6 @@ jobs:
       - name: 健康检查脚本自检
         env:
           DASHSCOPE_API_KEY: ci-dummy-key
-        run: python scripts/healthcheck.py
+        # CI 工作区没有 chroma_db（运行态目录不入库），故跳过向量库校验；
+        # 容器内 HEALTHCHECK 不传该参数，缺失向量库仍视为不健康
+        run: python scripts/healthcheck.py --allow-empty-kb
